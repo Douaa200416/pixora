@@ -14,7 +14,7 @@ const state = {
 };
 let originalContrast = null;
 
-const API = 'http://127.0.0.1:5000';
+const API = '';
 
 // TOAST
 function showToast(msg, type='success') {
