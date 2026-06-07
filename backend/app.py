@@ -275,7 +275,7 @@ def segmentation_evaluate():
 def index():
     return send_from_directory('../Frontend/assets', 'homepage.html')
 
-@app.route('/frontend/<path:path>')
+@app.route('/Frontend/<path:path>')
 def frontend_files(path):
     return send_from_directory('../Frontend', path)
 
