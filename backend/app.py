@@ -269,6 +269,15 @@ def segmentation_evaluate():
         'dice':        round(dice, 3),
         'TP': TP, 'TN': TN, 'FP': FP, 'FN': FN
     })
+ from flask import send_from_directory
+
+@app.route('/')
+def index():
+    return send_from_directory('../frontend/assets', 'homepage.html')
+
+@app.route('/frontend/<path:path>')
+def frontend_files(path):
+    return send_from_directory('../frontend', path)
 
 
 
