@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Pixora — Image Processing Studio</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="style.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        navy: "var(--navy)",
+        teal: "var(--teal)",
+        sky: "var(--sky)",
+        beige: "var(--beige)",
+        white: "var(--white)",
+      }
+    }
+  }
+}
+</script>
+</script>
+</head>
+
+<body>
+
+<!-- SVG -->
+<svg height="0" style="position:absolute" width="0">
+  <defs>
+    <linearGradient id="pg" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#567C8D"/>
+      <stop offset="100%" style="stop-color:#22d3a5"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<!-- Hidden file inputs -->
+<input type="file" id="fileInput" accept="image/*" style="display:none"/>
+<input type="file" id="fileInput2" accept="image/*" style="display:none"/>
+<input type="file" id="groundTruthInput" accept="image/*" style="display:none"/>
+
+<!--NAVBAR -->
+<header style="background:#2F4156; border-bottom:1px solid #F5EFEB; height:64px; display:flex; align-items:center; justify-content:space-between; padding:0 24px; position:fixed; top:0; left:0; right:0; z-index:200;">
+  <!-- Logo -->
+  <div style="display:flex; align-items:center; gap:12px;">
+    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+      <rect x="4" y="4" width="18" height="18" rx="3" fill="url(#pg)"/>
+      <rect x="10" y="10" width="18" height="18" rx="3" fill="url(#pg)" fill-opacity="0.5"/>
+      <path d="M10 8V22M10 8H17C19.5 8 21.5 10 21.5 12.5C21.5 15 19.5 17 17 17H10" stroke="white" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <div style="font-size:20px; font-weight:900; line-height:1.1; letter-spacing:-0.02em;">
+        <span style="color:#e6edf3;">Pi</span><span class="grad-text">x</span><span style="color:#e6edf3;">ora</span>
+      </div>
+      <div style="font-size:9px; color:#7d8590; font-weight:700; letter-spacing:0.15em; text-transform:uppercase;">Image Processing Space</div>
+    </div>
+  </div>
+
+  <!-- Nav links -->
+  <nav class="desktop-nav" style="display:flex; gap:24px; align-items:center;">
+    <a class="nav-link active" onclick="scrollToSection('file')">File</a>
+    <a class="nav-link" onclick="scrollToSection('types')">Types</a>
+    <a class="nav-link" onclick="scrollToSection('digitize')">Digitize</a>
+    <a class="nav-link" onclick="scrollToSection('histogram')">Histogram</a>
+    <a class="nav-link" onclick="scrollToSection('operations')">Operations</a>
+    <a class="nav-link" onclick="scrollToSection('noise')">Noise & Filter</a>
+    <a class="nav-link" onclick="scrollToSection('segmentation')">Segmentation</a>
+    <a class="nav-link" onclick="scrollToSection('compression')">Compression</a>
+    <a class="nav-link" onclick="openPanel('metrics')">Metrics</a>
+  </nav>
+
+  <!-- Right actions -->
+  <div style="display:flex; align-items:center; gap:10px;">
+    <button class="btn-outline" onclick="openPanel('characteristics')">
+      <span class="material-symbols-outlined" style="font-size:14px;">info</span> Info
+    </button>
+    <button class="btn-outline" onclick="document.getElementById('fileInput').click()">
+      <span class="material-symbols-outlined" style="font-size:14px;">upload</span> Load Image
+    </button>
+    <button class="btn-primary" onclick="saveImage()">
+      <span class="material-symbols-outlined" style="font-size:14px;">save</span> Save
+    </button>
+    <button class="btn-ghost" onclick="resetImage()">
+      <span class="material-symbols-outlined" style="font-size:14px;">restart_alt</span>
+    </button>
+    <!-- Hamburger -->
+    <button class="hamburger btn-ghost" onclick="toggleMobileMenu()">
+      <span class="material-symbols-outlined">menu</span>
+    </button>
+    <button class="btn-ghost" onclick="openHelp()">
+  <span class="material-symbols-outlined" style="font-size:14px;">help</span>
+</button>
+    
+  </div>
+</header>
+
+<!-- MAIN LAYOUT -->
+<div class="main-layout" style="display:flex; height:100vh; padding-top:64px; overflow:hidden;">
+
+  <!--LEFT PANEL -->
+  <div class="left-panel" style="flex:1; overflow-y:auto; padding:20px; background:#567C8D;">
+
+    <!-- Workspace header -->
+    <div style="display:flex; justify-content:center; align-items:center; margin-bottom:16px;">
+  <div style="font-size:20px; color:#F5EFEB; font-weight:1000;">
+    Load an image to begin processing
+  </div>
+</div>
+
+    <!-- Image panels -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+      <!-- Original -->
+      <div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:15px; font-weight:700; color:#F5EFEB; text-transform:uppercase; letter-spacing:0.08em;">Original Source</span>
+          <span style="font-size:15px; color:#7d8590;" id="origFilename">—</span>
+        </div>
+        <div class="img-box" id="origBox" style="height:260px;" onclick="if(!originalImage) document.getElementById('fileInput').click()">
+          <div id="origPlaceholder" style="text-align:center;font-size: 18px; color:#7d8590;">
+            <span class="material-symbols-outlined" style="font-size:36px; display:block; margin-bottom:8px; opacity:0.4;">add_photo_alternate</span>
+            <div style="font-size:12px;">Click to load image</div>
+          </div>
+          <img id="originalImage" style="display:none; width:100%; height:100%; object-fit:contain;"/>
+          <div class="loading-overlay" id="origLoading">
+            <div class="spinner"></div>
+            <div style="font-size:12px; color:#7d8590; margin-top:10px;">Loading...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Processed -->
+      <div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:15px; font-weight:700; color:#F5EFEB; text-transform:uppercase; letter-spacing:0.08em;">Processed Result</span>
+          <span style="font-size:15px; color:#567C8D; font-weight:600;" id="processingLabel">—</span>
+        </div>
+        <div class="img-box" id="procBox" style="height:260px;">
+          <div id="procPlaceholder" style="text-align:center; color:#7d8590;">
+            <span class="material-symbols-outlined" style="font-size:36px; display:block; margin-bottom:8px; opacity:0.4;">auto_fix_high</span>
+            <div style="font-size:12px;">Processed image appears here</div>
+          </div>
+          <img id="processedImage" style="display:none; width:100%; height:100%; object-fit:contain;"/>
+          <div class="loading-overlay" id="procLoading">
+            <div class="spinner"></div>
+            <div style="font-size:12px; color:#7d8590; margin-top:10px;" id="procLoadingText">Processing...</div>
+          </div>
+          <!-- Action buttons overlay -->
+          <div style="position:absolute; bottom:10px; right:10px; display:flex; gap:6px;">
+            <button class="btn-ghost" onclick="swapImages()" title="Swap original and processed">
+              <span class="material-symbols-outlined" style="font-size:14px;">swap_horiz</span>
+            </button>
+            <button class="btn-ghost" onclick="saveImage()" title="Save processed">
+              <span class="material-symbols-outlined" style="font-size:14px;">download</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Image Info Bar -->
+    <div style="background:#F5EFEB; border:1px solid #F5EFEB; border-radius:10px; padding:12px 16px; display:flex; flex-wrap:wrap; gap:16px; align-items:center; margin-bottom:16px;">
+      <div style="width:1px; height:28px; background:#2F4156;"></div>
+      <div><div class="sect-label">Dimensions</div><div style="font-size:13px; font-weight:600; color:#2F4156;" id="infoDims">— × —</div></div>
+      <div style="width:1px; height:28px; background:#2F4156;"></div>
+      <div><div class="sect-label">Mode</div><div style="font-size:13px; font-weight:600; color:#2F4156;" id="infoMode">—</div></div>
+      <div style="width:1px; height:28px; background:#2F4156;"></div>
+      <div><div class="sect-label">Format</div><div style="font-size:13px; font-weight:600; color:#2F4156;" id="infoFormat">—</div></div>
+      <div style="width:1px; height:28px; background:#2F4156;"></div>
+      <div><div class="sect-label">Real Size</div><div style="font-size:13px; font-weight:600; color:#2F4156;" id="infoSize">—</div></div>
+      <div style="width:1px; height:28px; background:#2F4156;"></div>
+      <div><div class="sect-label">Theo. Size</div><div style="font-size:13px; font-weight:600; color:#2F4156;" id="infoTheo">—</div></div>
+      <div style="width:1px; height:28px; background:#2F4156;"></div>
+      <div><div class="sect-label">Resolution</div><div style="font-size:13px; font-weight:600; color:#2F4156;" id="infoRes">—</div></div>
+      <div style="margin-left:auto; display:flex; align-items:center; gap:6px;">
+      </div>
+    </div>
+
+    <!-- Histogram preview -->
+<div style="background:#F5EFEB; border:1px solid #F5EFEB; border-radius:10px; padding:16px; margin-bottom:16px;">
+
+  <!-- HEADER -->
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+    
+    <h3 style="font-size:20px; font-weight:1000; color:#567C8D; display:flex; align-items:center; gap:8px;">
+      <span class="material-symbols-outlined" style="color:#567C8D;">bar_chart</span>
+      Spectral Histogram Analysis
+    </h3>
+
+    <div style="display:flex; gap:6px;">
+      <button class="btn-ghost" onclick="exportHistCSV()">Export CSV</button>
+      <button class="btn-ghost" id="logScaleBtn" onclick="toggleLogScale()">Log Scale</button>
+    </div>
+
+  </div>
+
+  <!-- Histo DISPLAY -->
+  <div id="histogramDisplay"
+       style="height:120px; background:#567C8D; border:1px solid #F5EFEB; border-radius:8px;
+              display:flex; align-items:flex-end; padding:8px; gap:1px; overflow:hidden;">
+
+    <div style="color:#F5EFEB; font-size:18px; width:100%; text-align:center; align-self:center;">
+      No image loaded
+    </div>
+
+  </div>
+
+  <!-- LABELS -->
+  <div style="display:flex; justify-content:space-between; margin-top:8px;
+              font-size:10px; color:#7d8590; font-weight:600;
+              text-transform:uppercase; letter-spacing:0.05em;">
+
+    <span>Black (0)</span>
+    <span>Midtones (127-128)</span>
+    <span>Highlights (255)</span>
+
+  </div>
+
+  <!--STATS -->
+  <div id="histStats"
+       style="margin-top:8px; font-size:12px; color:#567C8D; font-weight:600;">
+  </div>
+
+  <!-- EXPOSURE INDICATORS -->
+  <div id="exposureIndicators"
+       style="display:none; gap:8px; margin-top:10px;">
+
+    <span id="underExp"
+          style="display:none; font-size:11px; padding:4px 10px;"
+          class="info-badge">
+       Underexposed — histogram shifted left
+    </span>
+
+    <span id="overExp"
+          style="display:none; font-size:11px; padding:4px 10px;"
+          class="warn-badge">
+       Overexposed — histogram shifted right
+    </span>
+
+  </div>
+
+</div>
+    <!-- MSE/PSNR bar -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+      <div class="metric-card">
+        <div class="sect-label">MSE (Mean Squared Error)</div>
+        <div style="font-size:26px; font-weight:800; color:#567C8D;" id="mseValue">—</div>
+        <div style="font-size:18px; color:#7d8590;" id="mseLabel">Apply a filter to compute</div>
+      </div>
+      <div class="metric-card">
+        <div class="sect-label">PSNR (Peak Signal-to-Noise)</div>
+        <div style="font-size:26px; font-weight:800; color:#567C8D;" id="psnrValue">—</div>
+        <div style="font-size:18px; color:#7d8590;" id="psnrLabel">Apply a filter to compute</div>
+      </div>
+    </div>
+
+  </div><!-- end left panel -->
+
+  <!--RIGHT PANEL — Controls -->
+  <div class="right-panel" style="width:340px; background:#C8D9E6; border-left:1px solid #F5EFEB; overflow-y:auto; flex-shrink:0;">
+
+    <!-- Panel header -->
+    <div style="padding:12px 16px; border-bottom:1px solid #F5EFEB; background:#C8D9E6; position:sticky; top:0; z-index:10;">
+      <div style="font-size:15px; font-weight:700; color:#567C8D; text-transform:uppercase; letter-spacing:0.1em;">Workspace Controls</div>
+     
+    </div>
+
+    <!--  SECTION: Image Type Conversion -->
+    <div id="sec-types" class="section-card" style="border-bottom:1px solid #F5EFEB; background:#C8D9E6;">
+      <button onclick="toggleSection('types')" style="width:100%; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; background:transparent; border:none; cursor:pointer; color:#e6edf3;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="material-symbols-outlined" style="color:#567C8D; font-size:18px;">layers</span>
+
+          <span style="font-size:15px; font-weight:900; text-transform:uppercase; letter-spacing:0.05em;color:#567C8D;">Image Types</span>
+        </div>
+        <span class="material-symbols-outlined chevron" id="chev-types" style="color:#7d8590; font-size:16px;">expand_more</span>
+      </button>
+      <div class="collapsible-content open" id="cont-types">
+        <div style="padding:0 16px 14px;">
+          <div class="sect-label">Color Space Conversion</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:10px;">
+            <button class="pill-btn active" onclick="convertType('grayscale',this)">Grayscale</button>
+            <button class="pill-btn" onclick="convertType('binary',this)">Binary</button>
+            <button class="pill-btn" onclick="convertType('rgb',this)">RGB</button>
+            <button class="pill-btn" onclick="convertType('cmy',this)">CMY</button>
+            <button class="pill-btn" onclick="convertType('cmyk',this)">CMYK</button>
+            <button class="pill-btn" onclick="convertType('indexed',this)">Indexed</button>
+          </div>
+          <div class="sect-label">Binary Threshold</div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input type="range" min="0" max="255" value="128" id="binaryThreshSlider" oninput="document.getElementById('binaryThreshVal').textContent=this.value"/>
+            <span style="font-size:11px; color:#567C8D; font-weight:700; min-width:28px;" id="binaryThreshVal">128</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION: Digitization -->
+    <div id="sec-digitize" class="section-card teal" style="border-bottom:1px solid #F5EFEB;">
+      <button onclick="toggleSection('digitize')" style="width:100%; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; background:transparent; border:none; cursor:pointer; color:#e6edf3;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="material-symbols-outlined" style="color:#22d3a5; font-size:18px;">grid_on</span>
+          <span style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Digitization</span>
+        </div>
+        <span class="material-symbols-outlined chevron" id="chev-digitize" style="color:#7d8590; font-size:16px;">expand_more</span>
+      </button>
+      <div class="collapsible-content" id="cont-digitize">
+        <div style="padding:0 16px 14px; space-y:10px;">
+          <div class="info-badge" style="margin-bottom:10px; font-size:11px;">Simulates conversion by controlling sampling and quantization.</div>
+          <div style="margin-bottom:12px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              <div class="sect-label">Sampling (Spatial Resolution)</div>
+              <span style="font-size:11px; color:#22d3a5; font-weight:700;" id="samplingVal">100%</span>
+            </div>
+            <input type="range" min="1" max="100" value="100" id="samplingSlider" oninput="updateSampling(this.value)"/>
+            <div style="font-size:10px; color:#7d8590; margin-top:4px;">↓ Lower = pixelation effect (aliasing)</div>
+          </div>
+          <div style="margin-bottom:12px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              <div class="sect-label">Quantization (Gray Levels)</div>
+              <span style="font-size:11px; color:#22d3a5; font-weight:700;" id="quantVal">8 bits (256 levels)</span>
+            </div>
+            <input type="range" min="1" max="8" value="8" id="quantSlider" oninput="updateQuant(this.value)"/>
+            <div style="font-size:10px; color:#7d8590; margin-top:4px;">↓ Lower = fewer intensity levels (posterization)</div>
+          </div>
+          <button class="btn-primary" style="width:100%;" onclick="applyDigitization()">Apply Digitization</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── SECTION: Basic Operations ─── -->
+    <div id="sec-operations" class="section-card" style="border-bottom:1px solid #F5EFEB;">
+      <button onclick="toggleSection('operations')" style="width:100%; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; background:transparent; border:none; cursor:pointer; color:#e6edf3;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="material-symbols-outlined" style="color:#567C8D; font-size:18px;">crop_rotate</span>
+          <span style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Basic Operations</span>
+        </div>
+        <span class="material-symbols-outlined chevron" id="chev-operations" style="color:#7d8590; font-size:16px;">expand_more</span>
+      </button>
+      <div class="collapsible-content" id="cont-operations">
+        <div style="padding:0 16px 14px;">
+          <!-- Geometric ops -->
+          <div class="sect-label">Geometric Transformations</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:12px;">
+            <button class="btn-ghost" onclick="showOpParams('crop')"><span class="material-symbols-outlined" style="font-size:14px;">crop</span> Crop</button>
+            <button class="btn-ghost" onclick="showOpParams('rotate')"><span class="material-symbols-outlined" style="font-size:14px;">rotate_right</span> Rotate</button>
+            <button class="btn-ghost" onclick="showOpParams('translate')"><span class="material-symbols-outlined" style="font-size:14px;">open_with</span> Translate</button>
+            <button class="btn-ghost" onclick="showOpParams('scale')"><span class="material-symbols-outlined" style="font-size:14px;">aspect_ratio</span> Scale</button>
+            <button class="btn-ghost" onclick="showOpParams('flip')"><span class="material-symbols-outlined" style="font-size:14px;">flip</span> Reflection</button>
+            <button class="btn-ghost" onclick="showOpParams('symmetry')"><span class="material-symbols-outlined" style="font-size:14px;">filter_center_focus</span> Symmetry</button>
+          </div>
+          <!-- Dynamic params area -->
+          <div id="opParamsArea" style="display:none; background:#21262d; border:1px solid #F5EFEB; border-radius:8px; padding:12px; margin-bottom:10px;">
+            <div class="sect-label" id="opParamsTitle">Parameters</div>
+            <div id="opParamsContent"></div>
+            <button class="btn-primary" style="width:100%; margin-top:8px;" onclick="applyBasicOp()">Apply</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── SECTION: Arithmetic & Logical ─── -->
+    <div id="sec-arith" class="section-card warning" style="border-bottom:1px solid #F5EFEB;">
+      <button onclick="toggleSection('arith')" style="width:100%; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; background:transparent; border:none; cursor:pointer; color:#e6edf3;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="material-symbols-outlined" style="color:#f59e0b; font-size:18px;">calculate</span>
+          <span style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Arithmetic & Logic</span>
+        </div>
+        <span class="material-symbols-outlined chevron" id="chev-arith" style="color:#7d8590; font-size:16px;">expand_more</span>
+      </button>
+      <div class="collapsible-content" id="cont-arith">
+        <div style="padding:0 16px 14px;">
+          <div class="sect-label">Single Image Operations</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:10px;">
+            <button class="btn-ghost" onclick="applyArith('negative')">Negative</button>
+            <button class="btn-ghost" onclick="showConstInput()">+/- Constant</button>
+          </div>
+          <div id="constInputArea" style="display:none; margin-bottom:10px;">
+            <div style="display:flex; gap:6px; align-items:center;">
+              <input type="number" class="styled-input" id="constVal" value="50" min="-255" max="255" style="width:80px;"/>
+              <button class="btn-ghost" onclick="applyArith('add_const')">Add</button>
+              <button class="btn-ghost" onclick="applyArith('sub_const')">Subtract</button>
+            </div>
+          </div>
+          <div class="sect-label">Two Image Operations</div>
+          <div style="margin-bottom:8px;">
+            <button class="btn-outline" style="width:100%; margin-bottom:6px;" onclick="document.getElementById('fileInput2').click()">
+              <span class="material-symbols-outlined" style="font-size:13px;">add_photo_alternate</span> Load Second Image
+            </button>
+            <div id="img2name" style="font-size:10px; color:#7d8590; text-align:center; margin-bottom:6px;"></div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+              <button class="btn-ghost" onclick="applyArith('add_img')">Add Images</button>
+              <button class="btn-ghost" onclick="applyArith('sub_img')">Subtract Images</button>
+            </div>
+          </div>
+          <div class="sect-label">Logical Operations</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+            <button class="btn-ghost" onclick="applyArith('and')">AND</button>
+            <button class="btn-ghost" onclick="applyArith('or')">OR</button>
+            <button class="btn-ghost" onclick="applyArith('xor')">XOR</button>
+            <button class="btn-ghost" onclick="applyArith('not')">NOT</button>
+            <button class="btn-ghost" onclick="applyArith('nor')">NOR</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── SECTION: Histogram ─── -->
+    <div id="sec-histogram" class="section-card teal" style="border-bottom:1px solid #F5EFEB;">
+      <button onclick="toggleSection('histogram')" style="width:100%; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; background:transparent; border:none; cursor:pointer; color:#e6edf3;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="material-symbols-outlined" style="color:#22d3a5; font-size:18px;">bar_chart</span>
+          <span style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Histogram</span>
+        </div>
+        <span class="material-symbols-outlined chevron" id="chev-histogram" style="color:#7d8590; font-size:16px;">expand_more</span>
+      </button>
+      <div class="collapsible-content" id="cont-histogram">
+        <div style="padding:0 16px 14px;">
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:12px;">
+            <button class="btn-ghost" onclick="loadHistogram()">Show</button>
+            <button class="btn-ghost" onclick="sendOp('histogram/stretch')">Stretch</button>
+            <button class="btn-ghost" onclick="sendOp('histogram/equalize')">Equalize</button>
+          </div>
+          <div style="background:#2F4156; border:1px solid #F5EFEB; border-radius:8px; padding:10px; margin-bottom:10px;">
+            <div class="sect-label">Contrast Analysis</div>
+            <div style="display:flex; justify-content:space-between; font-size:11px; color:#7d8590;">
+              <span>Global Contrast (std²):</span><span style="color:#e6edf3; font-weight:600;" id="globalContrast">—</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:11px; color:#7d8590; margin-top:4px;">
+              <span>Before:</span><span style="color:#e6edf3; font-weight:600;" id="contrastBefore">—</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:11px; color:#7d8590; margin-top:4px;">
+              <span>After:</span><span style="color:#e6edf3; font-weight:600;" id="contrastAfter">—</span>
+            </div>
+          </div>
+          <!-- Local contrast -->
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+            <input type="checkbox" id="localContrastToggle" onchange="toggleLocalContrast()"/>
+            <label for="localContrastToggle" style="font-size:11px; color:#7d8590; cursor:pointer;">Show Local Contrast</label>
+          </div>
+          <div id="localContrastArea" style="display:none; background:#2F4156; border:1px solid #F5EFEB; border-radius:8px; padding:10px;">
+            <div class="sect-label">Region Selection (x, y, w, h)</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+              <input type="number" class="styled-input" placeholder="x" id="lcX" value="0"/>
+              <input type="number" class="styled-input" placeholder="y" id="lcY" value="0"/>
+              <input type="number" class="styled-input" placeholder="width" id="lcW" value="100"/>
+              <input type="number" class="styled-input" placeholder="height" id="lcH" value="100"/>
+            </div>
+            <button class="btn-ghost" style="width:100%; margin-top:8px;" onclick="computeLocalContrast()">Compute Local Contrast</button>
+            <div style="font-size:11px; color:#22d3a5; margin-top:6px; font-weight:600;" id="localContrastResult"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION: Noise -->
+    <div id="sec-noise" class="section-card danger" style="border-bottom:1px solid #F5EFEB;">
+      <button onclick="toggleSection('noise')" style="width:100%; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; background:transparent; border:none; cursor:pointer; color:#e6edf3;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="material-symbols-outlined" style="color:#ef4444; font-size:18px;">bolt</span>
+          <span style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Noise Addition</span>
+        </div>
+        <span class="material-symbols-outlined chevron" id="chev-noise" style="color:#7d8590; font-size:16px;">expand_more</span>
+      </button>
+      <div class="collapsible-content" id="cont-noise">
+        <div style="padding:0 16px 14px;">
+          <div class="sect-label">Noise Type</div>
+          <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">
+            <button class="pill-btn active" id="noiseBtn-gaussian" onclick="selectNoise('gaussian',this)">Gaussian</button>
+            <button class="pill-btn" id="noiseBtn-impulse" onclick="selectNoise('impulse',this)">Impulse (S&P)</button>
+            <button class="pill-btn" id="noiseBtn-speckle" onclick="selectNoise('speckle',this)">Speckle</button>
+            <button class="pill-btn" id="noiseBtn-poisson" onclick="selectNoise('poisson',this)">Poisson</button>
+            <button class="pill-btn" id="noiseBtn-periodic" onclick="selectNoise('periodic',this)">Periodic</button>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+            <div class="sect-label" id="noiseParamLabel">Variance (σ²)</div>
+            <span style="font-size:11px; color:#22d3a5; font-weight:700;" id="noiseParamVal">0.01</span>
+          </div>
+          <input type="range" min="1" max="100" value="10" id="noiseParamSlider" oninput="updateNoiseParam(this.value)"/>
+          <button class="btn-danger" style="width:100%; margin-top:10px; border-radius:8px; padding:8px;" onclick="sendNoiseOp()">Add Noise</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── SECTION: Filtering ─── -->
+    <div id="sec-filter" class="section-card" style="border-bottom:1px solid #F5EFEB;">
+      <button onclick="toggleSection('filter')" style="width:100%; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; background:transparent; border:none; cursor:pointer; color:#e6edf3;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="material-symbols-outlined" style="color:#567C8D; font-size:18px;">tune</span>
+          <span style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Filtering</span>
+        </div>
+        <span class="material-symbols-outlined chevron" id="chev-filter" style="color:#7d8590; font-size:16px;">expand_more</span>
+      </button>
+      <div class="collapsible-content" id="cont-filter">
+        <div style="padding:0 16px 14px;">
+          <!-- Mask shape & size -->
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+            <div>
+              <div class="sect-label">Mask Shape</div>
+              <select class="styled-input" id="maskShape">
+                <option value="square">Square</option>
+                <option value="rectangle">Rectangle</option>
+                <option value="cross">Cross</option>
+              </select>
+            </div>
+            <div>
+              <div class="sect-label">Kernel Size (odd)</div>
+              <select class="styled-input" id="kernelSize">
+                <option value="3">3×3</option>
+                <option value="5">5×5</option>
+                <option value="7">7×7</option>
+                <option value="9">9×9</option>
+                <option value="11">11×11</option>
+                <option value="15">15×15</option>
+              </select>
+            </div>
+          </div>
+          <!-- Filter category tabs -->
+          <div class="sect-label">Filter Category</div>
+          <div style="display:flex; gap:6px; margin-bottom:10px;">
+            <button class="sub-tab active" id="ftab-lpf" onclick="selectFilterCat('lpf',this)">Linear LPF</button>
+            <button class="sub-tab" id="ftab-hpf" onclick="selectFilterCat('hpf',this)">Linear HPF</button>
+            <button class="sub-tab" id="ftab-nlf" onclick="selectFilterCat('nlf',this)">Non-Linear</button>
+          </div>
+
+          <!-- LPF options -->
+          <div id="fcat-lpf">
+            <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+              <button class="pill-btn active" id="fBtn-mean" onclick="selectFilter('mean',this)">Mean</button>
+              <button class="pill-btn" id="fBtn-gaussian_f" onclick="selectFilter('gaussian_f',this)">Gaussian</button>
+              <button class="pill-btn" id="fBtn-median" onclick="selectFilter('median',this)">Median</button>
+            </div>
+            <!-- Padding (for Mean) -->
+            <div id="paddingArea">
+              <div class="sect-label">Padding Type</div>
+              <div style="display:flex; gap:6px;">
+                <button class="pill-btn active" id="pad-zeros" onclick="selectPad('zeros',this)">Zeros</button>
+                <button class="pill-btn" id="pad-mirror" onclick="selectPad('mirror',this)">Mirror</button>
+                <button class="pill-btn" id="pad-replicate" onclick="selectPad('replicate',this)">Replicate</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- HPF options -->
+          <div id="fcat-hpf" style="display:none;">
+            <div style="display:flex; flex-wrap:wrap; gap:6px;">
+              <button class="pill-btn active" id="fBtn-sharpen" onclick="selectFilter('sharpen',this)">Sharpen</button>
+              <button class="pill-btn" id="fBtn-laplacian_f" onclick="selectFilter('laplacian_f',this)">Laplacian HPF</button>
+              <button class="pill-btn" id="fBtn-unsharp" onclick="selectFilter('unsharp',this)">Unsharp Mask</button>
+            </div>
+          </div>
+
+          <!-- Non-linear options -->
+          <div id="fcat-nlf" style="display:none;">
+            <div style="display:flex; flex-wrap:wrap; gap:6px;">
+              <button class="pill-btn active" id="fBtn-knn" onclick="selectFilter('knn',this)">KNN</button>
+              <button class="pill-btn" id="fBtn-snn" onclick="selectFilter('snn',this)">SNN</button>
+              <button class="pill-btn" id="fBtn-sigma" onclick="selectFilter('sigma',this)">Sigma</button>
+            </div>
+          </div>
+
+          <button class="btn-primary" style="width:100%; margin-top:10px;" onclick="applyFilter()">Apply Filter</button>
+          <button class="btn-outline" style="width:100%; margin-top:6px;" onclick="addFilterStack()">+ Stack Another Filter</button>
+
+          <!-- Filter stack tags -->
+          <div id="filterStackArea" style="margin-top:8px; display:flex; flex-wrap:wrap; gap:4px;"></div>
+
+          <!-- Metrics display -->
+          <div style="background:#2F4156; border:1px solid #F5EFEB; border-radius:8px; padding:10px; margin-top:10px;">
+            <div class="sect-label">Quality Metrics vs Original</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:6px;">
+              <div>
+                <div style="font-size:10px; color:#7d8590;">MSE</div>
+                <div style="font-size:15px; font-weight:700; color:#e6edf3;" id="filterMSE">—</div>
+                <div style="font-size:10px; color:#7d8590; margin-top:2px;" id="filterMSE_rgb"></div>
+              </div>
+              <div>
+                <div style="font-size:10px; color:#7d8590;">PSNR</div>
+                <div style="font-size:15px; font-weight:700; color:#e6edf3;" id="filterPSNR">—</div>
+                <div style="font-size:10px; color:#7d8590; margin-top:2px;" id="filterPSNR_rgb"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION: Segmentation -->
+    <div id="sec-segmentation" class="section-card teal" style="border-bottom:1px solid #F5EFEB;">
+      <button onclick="toggleSection('segmentation')" style="width:100%; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; background:transparent; border:none; cursor:pointer; color:#e6edf3;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="material-symbols-outlined" style="color:#22d3a5; font-size:18px;">content_cut</span>
+          <span style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Segmentation</span>
+        </div>
+        <span class="material-symbols-outlined chevron" id="chev-segmentation" style="color:#7d8590; font-size:16px;">expand_more</span>
+      </button>
+      <div class="collapsible-content" id="cont-segmentation">
+        <div style="padding:0 16px 14px;">
+
+          <!-- Thresholding -->
+          <div style="background:#2F4156; border:1px solid #F5EFEB; border-radius:8px; padding:10px; margin-bottom:10px;">
+            <div class="sect-label" style="margin-bottom:8px; color:#e6edf3;">🔲 Thresholding</div>
+            <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px;">
+              <button class="sub-tab active" onclick="selectThresh('simple',this)">Simple</button>
+              <button class="sub-tab" onclick="selectThresh('double',this)">Double</button>
+              <button class="sub-tab" onclick="selectThresh('multi',this)">Multi</button>
+              <button class="sub-tab" onclick="selectThresh('otsu',this)">Otsu</button>
+              <button class="sub-tab" onclick="selectThresh('global',this)">Global</button>
+              <button class="sub-tab" onclick="selectThresh('local',this)">Local</button>
+              <button class="sub-tab" onclick="selectThresh('adaptive',this)">Adaptive</button>
+            </div>
+            <div id="threshParams">
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                <span style="font-size:10px; color:#7d8590; min-width:30px;">T1:</span>
+                <input type="range" min="0" max="255" value="127" id="thresh1" oninput="document.getElementById('thresh1val').textContent=this.value"/>
+                <span style="font-size:11px; color:#22d3a5; font-weight:700; min-width:24px;" id="thresh1val">127</span>
+              </div>
+            </div>
+            <button class="btn-ghost" style="width:100%; margin-top:6px;" onclick="applySegmentation('threshold')">Apply Threshold</button>
+          </div>
+
+          <!-- Edge Detection -->
+          <div style="background:#2F4156; border:1px solid #F5EFEB; border-radius:8px; padding:10px; margin-bottom:10px;">
+            <div class="sect-label" style="margin-bottom:8px; color:#e6edf3;">⚡ Edge Detection</div>
+            <div class="sect-label">Gradient Methods</div>
+            <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px;">
+              <button class="pill-btn" onclick="applySegmentation('roberts')">Roberts</button>
+              <button class="pill-btn" onclick="applySegmentation('prewitt')">Prewitt</button>
+              <button class="pill-btn" onclick="applySegmentation('sobel')">Sobel</button>
+              <button class="pill-btn" onclick="applySegmentation('canny')">Canny</button>
+            </div>
+            <div class="sect-label">Laplacian Methods</div>
+            <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px;">
+              <button class="pill-btn" onclick="applySegmentation('laplacian')">Laplacian</button>
+              <button class="pill-btn" onclick="applySegmentation('log')">LoG</button>
+            </div>
+            <div class="sect-label">Active Contours</div>
+            <div style="display:flex; flex-wrap:wrap; gap:4px;">
+              <button class="pill-btn" onclick="applySegmentation('snake')">Snake (Active Contour)</button>
+            </div>
+          </div>
+
+          <!-- Region-Based -->
+          <div style="background:#2F4156; border:1px solid #F5EFEB; border-radius:8px; padding:10px; margin-bottom:10px;">
+            <div class="sect-label" style="margin-bottom:8px; color:#e6edf3;">Region-Based</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+              <button class="btn-ghost" onclick="applySegmentation('region_growing')">Region Growing</button>
+              <button class="btn-ghost" onclick="applySegmentation('split_merge')">Split & Merge</button>
+            </div>
+          </div>
+
+          <!-- Morphology -->
+          <div style="background:#2F4156; border:1px solid #F5EFEB; border-radius:8px; padding:10px; margin-bottom:10px;">
+            <div class="sect-label" style="margin-bottom:8px; color:#e6edf3;">🔷 Morphological Operations</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px;">
+              <button class="btn-ghost" onclick="applySegmentation('erosion')">Erosion</button>
+              <button class="btn-ghost" onclick="applySegmentation('dilation')">Dilation</button>
+              <button class="btn-ghost" onclick="applySegmentation('opening')">Opening</button>
+              <button class="btn-ghost" onclick="applySegmentation('closing')">Closing</button>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+              <div>
+                <div class="sect-label">SE Shape</div>
+                <select class="styled-input" id="morphShape">
+                  <option value="rect">Square</option>
+                  <option value="cross">Cross</option>
+                  <option value="ellipse">Disk</option>
+                </select>
+              </div>
+              <div>
+                <div class="sect-label">SE Size</div>
+                <select class="styled-input" id="morphSize">
+                  <option value="3">3×3</option>
+                  <option value="5">5×5</option>
+                  <option value="7">7×7</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Clustering -->
+          <div style="background:#2F4156; border:1px solid #F5EFEB; border-radius:8px; padding:10px; margin-bottom:10px;">
+            <div class="sect-label" style="margin-bottom:8px; color:#e6edf3;">🔵 Clustering-Based</div>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+              <span style="font-size:15px; color:#22d3a5;">K value:</span>
+              <input type="number" class="styled-input" id="kValue" value="3" min="2" max="10" style="width:60px;color:#21262d;"/>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:6px;">
+              <button class="pill-btn" onclick="applySegmentation('kmeans')">K-Means</button>
+              <button class="pill-btn" onclick="applySegmentation('fcm')">Fuzzy C-Means</button>
+              <button class="pill-btn" onclick="applySegmentation('pcm')">Possibilistic C-Means</button>
+            </div>
+          </div>
+
+          <!-- Deep Learning -->
+          <div style="background:#2F4156; border:1px solid #F5EFEB; border-radius:8px; padding:10px; margin-bottom:10px;">
+            <div class="sect-label" style="margin-bottom:6px; color:#e6edf3;">🤖 Deep Learning</div>
+            <div style="font-size:11px; color:#7d8590; margin-bottom:8px;">Uses a lightweight pretrained model for automatic segmentation.</div>
+            <button class="btn-primary" style="width:100%;" onclick="applySegmentation('deeplearning')">Run Pretrained Segmentation</button>
+          </div>
+
+          <!-- Evaluation -->
+          <div style="background:#2F4156; border:1px solid #F5EFEB; border-radius:8px; padding:10px;">
+            <div class="sect-label" style="margin-bottom:8px; color:#e6edf3;">📊 Segmentation Evaluation</div>
+            <button class="btn-outline" style="width:100%; margin-bottom:8px;" onclick="document.getElementById('groundTruthInput').click()">
+              Load Ground Truth Image
+            </button>
+            <div id="evalMetrics" style="display:none; space-y:6px;">
+              <div style="margin-bottom:6px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span style="font-size:11px;">F1 Score</span><span style="font-size:11px; font-weight:700; color:#22d3a5;" id="evalF1">—</span></div>
+                <div class="progress-bar"><div class="progress-fill" id="evalF1Bar" style="width:0%"></div></div>
+              </div>
+              <div style="margin-bottom:6px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span style="font-size:11px;">Recall</span><span style="font-size:11px; font-weight:700; color:#22d3a5;" id="evalRecall">—</span></div>
+                <div class="progress-bar"><div class="progress-fill" id="evalRecallBar" style="width:0%"></div></div>
+              </div>
+              <div style="margin-bottom:6px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span style="font-size:11px;">Sensitivity</span><span style="font-size:11px; font-weight:700; color:#22d3a5;" id="evalSens">—</span></div>
+                <div class="progress-bar"><div class="progress-fill" id="evalSensBar" style="width:0%"></div></div>
+              </div>
+              <div style="margin-bottom:6px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span style="font-size:11px;">Precision</span><span style="font-size:11px; font-weight:700; color:#22d3a5;" id="evalPrec">—</span></div>
+                <div class="progress-bar"><div class="progress-fill" id="evalPrecBar" style="width:0%"></div></div>
+              </div>
+              <div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:3px;"><span style="font-size:11px;">Accuracy</span><span style="font-size:11px; font-weight:700; color:#22d3a5;" id="evalAcc">—</span></div>
+                <div class="progress-bar"><div class="progress-fill" id="evalAccBar" style="width:0%"></div></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!--  SECTION: Compression  -->
+    <div id="sec-compression" class="section-card warning" style="border-bottom:1px solid #F5EFEB;">
+      <button onclick="toggleSection('compression')" style="width:100%; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; background:transparent; border:none; cursor:pointer; color:#e6edf3;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span class="material-symbols-outlined" style="color:#f59e0b; font-size:18px;">compress</span>
+          <span style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em;">Compression</span>
+        </div>
+        <span class="material-symbols-outlined chevron" id="chev-compression" style="color:#7d8590; font-size:16px;">expand_more</span>
+      </button>
+      <div class="collapsible-content" id="cont-compression">
+        <div style="padding:0 16px 14px;">
+          <div style="display:flex; gap:8px; margin-bottom:12px;">
+            <button class="pill-btn active" id="comp-lossless" onclick="selectComp('lossless',this)">Lossless (PNG)</button>
+            <button class="pill-btn" id="comp-lossy" onclick="selectComp('lossy',this)">Lossy (JPEG)</button>
+          </div>
+          <div id="qualityArea">
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              <div class="sect-label">Quality</div>
+              <span style="font-size:11px; color:#F5EFEB; font-weight:700;" id="compQualVal">85%</span>
+            </div>
+            <input type="range" min="1" max="100" value="85" id="compQuality" oninput="document.getElementById('compQualVal').textContent=this.value+'%'"/>
+          </div>
+          <div style="background:#2F4156; border:1px solid #F5EFEB; border-radius:8px; padding:10px; margin:10px 0;">
+            <div style="display:flex; justify-content:space-between; font-size:11px; color:#7d8590; margin-bottom:4px;">
+              <span>Original Size:</span><span style="color:#e6edf3; font-weight:600;" id="origSizeComp">—</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:11px; color:#7d8590; margin-bottom:4px;">
+              <span>Compressed Size:</span><span style="color:#e6edf3; font-weight:600;" id="compSizeComp">—</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:11px; color:#7d8590;">
+              <span>Compression Ratio:</span><span style="color:#22d3a5; font-weight:700;" id="compRatio">—</span>
+            </div>
+          </div>
+          <button class="btn-primary" style="width:100%;" onclick="compressAndSave()">Compress & Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="padding:14px 16px; background:#2F4156; border-top:1px solid #F5EFEB; position:sticky; bottom:0;">
+      <div style="display:flex; justify-content:center; gap:16px; margin-top:10px;">
+        <button class="btn-ghost" style="font-size:10px;" onclick="openPanel('metrics')">
+          <span class="material-symbols-outlined" style="font-size:13px;">bar_chart</span> Metrics
+        </button>
+        <button class="btn-ghost" style="font-size:10px;" onclick="resetImage()">
+          <span class="material-symbols-outlined" style="font-size:13px;">restart_alt</span> Reset
+        </button>
+      </div>
+    </div>
+  </div><!-- end right panel -->
+</div><!-- end main layout -->
+
+<!-- STATUS BAR -->
+<div style="position:fixed; bottom:0; left:0; right:0; height:28px; background:#F5EFEB; border-top:1px solid #F5EFEB; display:flex; align-items:center; padding:0 16px; justify-content:space-between; z-index:100;">
+  <div style="display:flex; gap:12px; align-items:center;">
+    <span style="font-size:11px; color:#7d8590;" class="mono" id="cursorCoords">X: — Y: — | R: — G: — B: —</span>
+  </div>
+</div>
+
+<!--  Image Characteristics -->
+<div class="overlay-panel" id="panel-characteristics">
+  <div style="padding:20px; border-bottom:1px solid #F5EFEB; display:flex; justify-content:space-between; align-items:start; background:#2F4156;">
+    <div>
+      <h2 style="font-size:18px; font-weight:800; color:#e6edf3;">Image Characteristics</h2>
+    </div>
+    <button class="btn-ghost" onclick="closePanel('characteristics')"><span class="material-symbols-outlined">close</span></button>
+  </div>
+  <div style="padding:20px; overflow-y:auto; height:calc(100% - 80px);">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+      <div class="metric-card">
+        <div class="sect-label">Dimensions</div>
+        <div style="font-size:18px; font-weight:800; color:#567C8D;" id="charDims">— × —</div>
+        <div style="font-size:11px; color:#567C8D; margin-top:2px;" id="charRes">—</div>
+      </div>
+      <div class="metric-card">
+        <div class="sect-label">Memory Footprint</div>
+        <div style="font-size:18px; font-weight:800; color:#567C8D;" id="charMem">—</div>
+        <div style="font-size:11px; color:#7d8590; margin-top:2px;" id="charMemType">—</div>
+      </div>
+    </div>
+    <!-- Resolution warning -->
+    <div class="warn-badge" id="resWarning" style="display:none; margin-bottom:16px;">
+      <span class="material-symbols-outlined" style="font-size:18px; color:#f59e0b;">warning</span>
+      <div>
+        <div style="font-weight:700; font-size:12px;">⚠ ALIASING RISK</div>
+        <div id="resWarningText" style="font-size:11px; margin-top:3px;">Low spatial resolution — pixelation (aliasing) may occur.</div>
+      </div>
+    </div>
+    <!-- Dynamic range -->
+    <div style="margin-bottom:16px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+        <div class="sect-label">Dynamic Range : Min -> Max Intensity</div>
+        <span style="font-size:12px; font-weight:700; color:#22d3a5;" id="charDynRange">—</span>
+      </div>
+      <div style="height:20px; background:linear-gradient(to right, black, white); border-radius:4px; border:1px solid #F5EFEB; position:relative;">
+        <div id="minMarker" style="position:absolute; top:-4px; width:3px; height:28px; background:#567C8D; border-radius:2px;"></div>
+        <div id="maxMarker" style="position:absolute; top:-4px; right:0; width:3px; height:28px; background:#22d3a5; border-radius:2px;"></div>
+      </div>
+      <div style="display:flex; justify-content:space-between; font-size:10px; color:#7d8590; margin-top:4px; font-weight:600;" class="mono">
+        <span id="charMin">Min: —</span><span id="charMax">Max: —</span>
+      </div>
+    </div>
+    <!-- Photometrics-->
+    <div style="background:#2F4156; border:1px solid #F5EFEB; border-radius:8px; padding:14px; margin-bottom:16px;">
+      <div class="sect-label" style="margin-bottom:10px; color:#e6edf3;">Photometric Data</div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; justify-content:space-between; font-size:12px;"><span style="color:#7d8590;">Tonal Resolution</span><span style="color:#e6edf3; font-weight:600;" class="mono" id="charTonal">—</span></div>
+        <div style="display:flex; justify-content:space-between; font-size:12px;"><span style="color:#7d8590;">Color Mode</span><span style="color:#e6edf3; font-weight:600;" class="mono" id="charMode">—</span></div>
+        <div style="display:flex; justify-content:space-between; font-size:12px;"><span style="color:#7d8590;">Format Type</span><span style="color:#e6edf3; font-weight:600;" class="mono" id="charFmt">—</span></div>
+        <div style="display:flex; justify-content:space-between; font-size:12px;"><span style="color:#7d8590;">Theoretical Size</span><span style="color:#e6edf3; font-weight:600;" class="mono" id="charTheo">—</span></div>
+        <div style="display:flex; justify-content:space-between; font-size:12px;"><span style="color:#7d8590;">Real File Size</span><span style="color:#e6edf3; font-weight:600;" class="mono" id="charReal">—</span></div>
+        <div style="display:flex; justify-content:space-between; font-size:12px;"><span style="color:#7d8590;">Luminance (avg)</span><span style="color:#e6edf3; font-weight:600;" class="mono" id="charLum">—</span></div>
+        <div style="display:flex; justify-content:space-between; font-size:12px;"><span style="color:#7d8590;">Contrast (std²)</span><span style="color:#e6edf3; font-weight:600;" class="mono" id="charContrast">—</span></div>
+        <div style="display:flex; justify-content:space-between; font-size:12px;"><span style="color:#7d8590;">Spatial Resolution</span><span style="color:#e6edf3; font-weight:600;" class="mono" id="charSpatial">—</span></div>
+        <div style="display:flex; justify-content:space-between; font-size:12px;"><span style="color:#7d8590;">Display Standard</span><span style="color:#e6edf3; font-weight:600;" class="mono" id="charStandard">—</span></div>
+        <div style="display:flex; justify-content:space-between; font-size:12px;"><span style="color:#7d8590;">Image Format Type</span><span style="color:#e6edf3; font-weight:600;" class="mono" id="charImgFmt">—</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay-panel" id="panel-metrics">
+  <div style="padding:20px; border-bottom:1px solid #F5EFEB; display:flex; justify-content:space-between; align-items:start; background:#567C8D;">
+    <div>
+      <h2 style="font-size:18px; font-weight:800; color:#e6edf3;">Analysis Metrics</h2>
+    </div>
+    <button class="btn-ghost" onclick="closePanel('metrics')"><span class="material-symbols-outlined">close</span></button>
+  </div>
+  <div style="padding:20px; overflow-y:auto; height:calc(100% - 80px);">
+  
+    <div style="margin-bottom:20px;">
+  <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+    <span class="material-symbols-outlined" style="color:#22d3a5;">tune</span>
+    <span style="font-size:13px; font-weight:700; color:#567C8D;">Image Quality</span>
+  </div>
+
+  <!-- Luminance -->
+  <div style="margin-bottom:10px;">
+    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+      <span style="font-size:12px; color:#7d8590;">Luminance (avg brightness)</span>
+      <span style="font-size:12px; font-weight:700; color:#e6edf3;" id="mLum">—</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="mLumBar" style="width:0%; background:linear-gradient(90deg,#567C8D,#e6edf3);"></div>
+    </div>
+    <div style="font-size:10px; color:#7d8590; margin-top:3px;" id="mLumLabel">—</div>
+  </div>
+
+  <!-- Contrast -->
+  <div style="margin-bottom:10px;">
+    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+      <span style="font-size:12px; color:#7d8590;">Contrast (std²)</span>
+      <span style="font-size:12px; font-weight:700; color:#e6edf3;" id="mContrast">—</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="mContrastBar" style="width:0%; background:linear-gradient(90deg,#22d3a5,#567C8D);"></div>
+    </div>
+    <div style="font-size:10px; color:#7d8590; margin-top:3px;" id="mContrastLabel">—</div>
+  </div>
+
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+    <div class="metric-card">
+      <div class="sect-label">Min Intensity</div>
+      <div style="font-size:20px; font-weight:800; color:#567C8D;" id="mMinVal">—</div>
+      <div style="font-size:10px; color:#7d8590;">darkest pixel</div>
+    </div>
+    <div class="metric-card">
+      <div class="sect-label">Max Intensity</div>
+      <div style="font-size:20px; font-weight:800; color:#567C8D;" id="mMaxVal">—</div>
+      <div style="font-size:10px; color:#7d8590;">brightest pixel</div>
+    </div>
+  </div>
+
+  <!-- Exposure warning -->
+  <div id="mExposureWarn" style="display:none; font-size:11px; padding:8px 10px; background:#1a1f26; border-radius:6px; border-left:3px solid #ef4444; color:#e6edf3;">
+    ⚠ <span id="mExposureText">—</span>
+  </div>
+</div>
+    
+    <div style="margin-bottom:20px;">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+        <span class="material-symbols-outlined" style="color:#22d3a5;">balance</span>
+        <span style="font-size:13px; font-weight:700; color:#567C8D">Destortion metrics</span>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+        <div class="metric-card">
+          <div class="sect-label">MSE (Global)</div>
+          <div style="font-size:20px; font-weight:800; color:#567C8D;" id="metricsMSE">—</div>
+          <div style="font-size:10px; color:#7d8590; margin-top:4px;" id="metricsMSEstatus">—</div>
+        </div>
+        <div class="metric-card">
+          <div class="sect-label">PSNR (dB)</div>
+          <div style="font-size:20px; font-weight:800; color:#567C8D;" id="metricsPSNR">—</div>
+          <div style="font-size:10px; color:#7d8590; margin-top:4px;" id="metricsPSNRstatus">—</div>
+        </div>
+      </div>
+      <!-- RGB breakdown -->
+      <div class="metric-card">
+        <div class="sect-label" style="margin-bottom:8px;">RGB Channel Breakdown</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+          <div style="text-align:center;">
+            <div style="font-size:10px; color:#ef4444; font-weight:700;">RED</div>
+            <div style="font-size:14px; font-weight:700; color:#567C8D;" id="mseR">—</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:10px; color:#22d3a5; font-weight:700;">GREEN</div>
+            <div style="font-size:14px; font-weight:700; color:#567C8D;" id="mseG">—</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:10px; color:#567C8D; font-weight:700;">BLUE</div>
+            <div style="font-size:14px; font-weight:700; color:#567C8D;" id="mseB">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Segmentation Evaluation -->
+    <div style="margin-bottom:20px;">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+        <span class="material-symbols-outlined" style="color:#22d3a5;">compare</span>
+        <span style="font-size:13px; font-weight:700; color:#567C8D;">Segmentation Evaluation</span>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:10px;">
+        <button class="sub-tab active">F1 Score</button>
+        <button class="sub-tab active">Recall</button>
+        <button class="sub-tab active">Sensitivity</button>
+        <button class="sub-tab active">Precision</button>
+        <button class="sub-tab active">IoU</button>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div><div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span style="font-size:12px; color:#7d8590;">F1 Score</span><span style="font-size:12px; font-weight:700; color:#e6edf3;" id="mF1">—</span></div><div class="progress-bar"><div class="progress-fill" id="mF1bar" style="width:0%"></div></div></div>
+        <div><div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span style="font-size:12px; color:#7d8590;">Recall</span><span style="font-size:12px; font-weight:700; color:#e6edf3;" id="mRecall">—</span></div><div class="progress-bar"><div class="progress-fill" id="mRecallbar" style="width:0%"></div></div></div>
+        <div><div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span style="font-size:12px; color:#7d8590;">Sensitivity</span><span style="font-size:12px; font-weight:700; color:#e6edf3;" id="mSens">—</span></div><div class="progress-bar"><div class="progress-fill" id="mSensbar" style="width:0%"></div></div></div>
+        <div><div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span style="font-size:12px; color:#7d8590;">Precision</span><span style="font-size:12px; font-weight:700; color:#e6edf3;" id="mPrec">—</span></div><div class="progress-bar"><div class="progress-fill" id="mPrecbar" style="width:0%"></div></div></div>
+        <div><div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span style="font-size:12px; color:#7d8590;">Accuracy</span><span style="font-size:12px; font-weight:700; color:#e6edf3;" id="mAcc">—</span></div><div class="progress-bar"><div class="progress-fill" id="mAccbar" style="width:0%"></div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+
+<div id="backdrop" onclick="closeAllPanels()" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:99;"></div>
+
+<div id="helpModal" style="display:none; position:fixed; inset:0; z-index:500; background:rgba(0,0,0,0.6); align-items:center; justify-content:center;">
+  <div style="background:#2F4156; border:1px solid #567C8D; border-radius:16px; width:520px; max-width:90vw; max-height:85vh; overflow-y:auto; padding:32px; position:relative;">
+    
+    <!-- Close -->
+    <button onclick="closeHelp()" style="position:absolute; top:16px; right:16px; background:transparent; border:none; cursor:pointer; color:#7d8590;">
+      <span class="material-symbols-outlined">close</span>
+    </button>
+
+
+    <div style="text-align:center; margin-bottom:24px;">
+      <div style="font-size:28px; font-weight:900; color:#e6edf3; margin-bottom:4px;">
+        Pi<span class="grad-text">x</span>ora
+      </div>
+      <div style="font-size:12px; color:#567C8D; font-weight:700; text-transform:uppercase; letter-spacing:0.15em;">Image Processing Workspace</div>
+      <div style="margin-top:12px; font-size:13px; color:#7d8590; line-height:1.6;">
+        An image processing workspace for analysis, transformation, segmentation and evaluation.
+      </div>
+    </div>
+
+    <!-- Features grid -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:24px;">
+      
+      <div style="background:#567C8D22; border:1px solid #567C8D; border-radius:10px; padding:12px;">
+        <span class="material-symbols-outlined" style="color:#22d3a5;">Palette</span>
+        <div style="font-size:12px; font-weight:700; color:#e6edf3; margin-bottom:4px;">Color Conversion</div>
+        <div style="font-size:11px; color:#7d8590;">Convert between RGB, Grayscale, Binary, CMY, CMYK and Indexed color spaces.</div>
+      </div>
+
+      <div style="background:#567C8D22; border:1px solid #567C8D; border-radius:10px; padding:12px;">
+        <span class="material-symbols-outlined" style="color:#22d3a5;"><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#22d3a5"><path d="M640-160v-280h160v280H640Zm-240 0v-640h160v640H400Zm-240 0v-440h160v440H160Z"/></svg></span>
+        <div style="font-size:12px; font-weight:700; color:#e6edf3; margin-bottom:4px;">Histogram Analysis</div>
+        <div style="font-size:11px; color:#7d8590;">Visualize intensity distribution, equalize, stretch and analyze contrast.</div>
+      </div>
+
+      <div style="background:#567C8D22; border:1px solid #567C8D; border-radius:10px; padding:12px;">
+        <span class="material-symbols-outlined" style="color:#22d3a5;">Filter</span>
+        <div style="font-size:12px; font-weight:700; color:#e6edf3; margin-bottom:4px;">Filtering</div>
+        <div style="font-size:11px; color:#7d8590;">Apply LPF, HPF and non-linear filters. Get MSE and PSNR quality metrics.</div>
+      </div>
+
+      <div style="background:#567C8D22; border:1px solid #567C8D; border-radius:10px; padding:12px;">
+        <span class="material-symbols-outlined" style="color:#22d3a5;">Cut</span>
+        <div style="font-size:12px; font-weight:700; color:#e6edf3; margin-bottom:4px;">Segmentation</div>
+        <div style="font-size:11px; color:#7d8590;">Threshold, edge detection, clustering (K-Means, FCM) and deep learning methods.</div>
+      </div>
+
+      <div style="background:#567C8D22; border:1px solid #567C8D; border-radius:10px; padding:12px;">
+        <span class="material-symbols-outlined" style="color:#22d3a5;">Analytics</span>
+        <div style="font-size:12px; font-weight:700; color:#e6edf3; margin-bottom:4px;">Evaluation Metrics</div>
+        <div style="font-size:11px; color:#7d8590;">Load a ground truth mask to compute F1, Precision, Recall, IoU and Accuracy.</div>
+      </div>
+
+      <div style="background:#567C8D22; border:1px solid #567C8D; border-radius:10px; padding:12px;">
+       <span class="material-symbols-outlined" style="color:#22d3a5;">Compress</span>
+        <div style="font-size:12px; font-weight:700; color:#e6edf3; margin-bottom:4px;">Compression</div>
+        <div style="font-size:11px; color:#7d8590;">Lossless PNG or lossy JPEG compression with ratio and size stats.</div>
+      </div>
+
+    </div>
+
+    <!-- How to use -->
+    <div style="background:#1a2332; border-radius:10px; padding:14px; margin-bottom:20px;">
+      <div style="font-size:12px; font-weight:700; color:#22d3a5; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.08em;">How to use</div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; gap:10px; align-items:start;">
+          <span style="background:#567C8D; color:#e6edf3; font-size:10px; font-weight:800; width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">1</span>
+          <span style="font-size:12px; color:#7d8590;">Click <strong style="color:#e6edf3;">Load Image</strong> in the top right to upload your image.</span>
+        </div>
+        <div style="display:flex; gap:10px; align-items:start;">
+          <span style="background:#567C8D; color:#e6edf3; font-size:10px; font-weight:800; width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">2</span>
+          <span style="font-size:12px; color:#7d8590;">Use the <strong style="color:#e6edf3;">right panel</strong> to apply operations — each section is collapsible.</span>
+        </div>
+        <div style="display:flex; gap:10px; align-items:start;">
+          <span style="background:#567C8D; color:#e6edf3; font-size:10px; font-weight:800; width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">3</span>
+          <span style="font-size:12px; color:#7d8590;">The <strong style="color:#e6edf3;">processed result</strong> appears on the right side of the main view.</span>
+        </div>
+        <div style="display:flex; gap:10px; align-items:start;">
+          <span style="background:#567C8D; color:#e6edf3; font-size:10px; font-weight:800; width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">4</span>
+          <span style="font-size:12px; color:#7d8590;">Open <strong style="color:#e6edf3;">Metrics</strong> in the navbar to see quality analysis and segmentation evaluation.</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:10px;">
+      <button onclick="closeHelp()" class="btn-primary" style="flex:1; padding:12px;">
+        Get Started
+      </button>
+    </div>
+
+  </div>
+</div>
+<script src="app.js"> </script>
+</body>
+</html>
