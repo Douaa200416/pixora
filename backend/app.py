@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 import os
 import io
@@ -269,7 +269,7 @@ def segmentation_evaluate():
         'dice':        round(dice, 3),
         'TP': TP, 'TN': TN, 'FP': FP, 'FN': FN
     })
- from flask import send_from_directory
+ 
 
 @app.route('/')
 def index():
